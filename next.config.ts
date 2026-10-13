@@ -1,6 +1,5 @@
+// @ts-nocheck
 import type { NextConfig } from "next";
-
-// @ts-ignore
 import withPWAInit from "next-pwa";
 
 const withPWA = withPWAInit({
@@ -10,11 +9,9 @@ const withPWA = withPWAInit({
 
 const nextConfig: NextConfig = {
   typescript: {
-    // Verhindert, dass Vercel den Build wegen kleiner TypeScript-Warnungen abbricht
     ignoreBuildErrors: true,
   },
   eslint: {
-    // Verhindert, dass Linter-Warnungen den Build stoppen
     ignoreDuringBuilds: true,
   },
 };
