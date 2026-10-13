@@ -1,69 +1,79 @@
-import Image from "next/image";
+'use client';
+import { differenceInDays, differenceInSeconds } from 'date-fns';
+import { useState, useEffect } from 'react';
+import { FaHome, FaPalette, FaStar, FaImage } from 'react-icons/fa';
 
 export default function Home() {
+  const anniversary = new Date('2026-08-20T00:00:00');
+  const [daysTogether, setDaysTogether] = useState(0);
+
+  useEffect(() => {
+    // Berechnung der Tage seit/bis zum Jahrestag
+    setDaysTogether(Math.abs(differenceInDays(new Date(), anniversary)));
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-[#F0EEF5] pb-24 font-sans flex flex-col items-center">
+      
+      {/* Mood Tracker */}
+      <div className="w-full max-w-md p-4">
+        <p className="text-center text-xs text-gray-500 font-bold mb-2 tracking-wider">DEINE STIMMUNG HEUTE</p>
+        <div className="bg-white rounded-full p-2 flex justify-around items-center shadow-sm">
+          {/* Hier kommen die Buttons für die Emojis rein */}
+          <button className="text-2xl hover:scale-110 transition">😊</button>
+          <button className="text-2xl hover:scale-110 transition">🥰</button>
+          <button className="text-2xl hover:scale-110 transition">🥱</button>
+          <div className="bg-purple-200 rounded-full p-2 shadow-inner"><button className="text-2xl">😢</button></div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </div>
+
+      {/* Unsere Reise Karte */}
+      <div className="w-full max-w-md p-4">
+        <div className="bg-white rounded-3xl p-6 shadow-sm flex flex-col items-center">
+          <h2 className="text-lg text-indigo-900 font-bold mb-4">Unsere Reise</h2>
+          <p className="text-xs text-gray-400 font-bold tracking-widest uppercase">Wir lieben uns seit</p>
+          <h1 className="text-6xl text-indigo-600 font-black my-2">{daysTogether}</h1>
+          <p className="text-sm text-gray-500 font-bold mb-1">TAGEN</p>
+          <p className="text-sm text-gray-800 mb-6">18 Std. 41 Min. 0 Sek.</p>
+          
+          <div className="w-full bg-gradient-to-r from-purple-400 to-pink-400 rounded-2xl p-4 text-center text-white shadow-md">
+            <p className="text-sm font-semibold">Nächster Jahrestag in</p>
+            <p className="text-2xl font-bold mt-1">311 Tagen ❤️</p>
+          </div>
         </div>
-      </main>
+      </div>
+
+      {/* Süßer Gedanke Karte */}
+      <div className="w-full max-w-md p-4">
+        <div className="bg-white rounded-3xl p-6 shadow-sm relative">
+          <h2 className="text-lg text-indigo-900 font-bold mb-4 text-center">Süßer Gedanke</h2>
+          <span className="text-4xl text-purple-200 absolute left-6 top-12">"</span>
+          <p className="text-center text-gray-600 italic mt-4 z-10 relative">Du machst mein Leben komplett.</p>
+        </div>
+      </div>
+
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-4 left-0 w-full flex justify-center px-4">
+        <div className="bg-white rounded-3xl shadow-lg w-full max-w-md flex justify-around items-center p-2 relative">
+          <button className="bg-purple-200 text-indigo-800 rounded-2xl py-2 px-4 flex flex-col items-center w-20">
+            <FaHome className="text-xl mb-1 text-orange-500" />
+            <span className="text-xs font-bold">Home</span>
+          </button>
+          <button className="text-gray-400 hover:text-indigo-600 rounded-2xl py-2 px-4 flex flex-col items-center w-20 transition">
+            <FaPalette className="text-xl mb-1 text-pink-400" />
+            <span className="text-xs font-bold">Malen</span>
+          </button>
+          <button className="text-gray-400 hover:text-indigo-600 rounded-2xl py-2 px-4 flex flex-col items-center w-20 transition">
+            <FaStar className="text-xl mb-1 text-yellow-400" />
+            <span className="text-xs font-bold">Ziele</span>
+          </button>
+          <button className="text-gray-400 hover:text-indigo-600 rounded-2xl py-2 px-4 flex flex-col items-center w-20 transition">
+            <FaImage className="text-xl mb-1 text-green-400" />
+            <span className="text-xs font-bold">Galerie</span>
+          </button>
+        </div>
+      </div>
+
     </div>
   );
 }
