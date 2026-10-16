@@ -55,6 +55,12 @@ export default function Home() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [brushColor, setBrushColor] = useState('#6C5CE7');
   const [brushSize, setBrushSize] = useState(4);
+  const [drawingCaption, setDrawingCaption] = useState('');
+  
+  // Foto-Vorschau vor dem Senden
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoCaption, setPhotoCaption] = useState('');
+
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('🎨 Kunstwerk in Galerie gespeichert! ❤️');
 
@@ -100,6 +106,7 @@ export default function Home() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setDrawingCaption('');
   };
 
   const saveDrawing = async () => {
@@ -110,24 +117,25 @@ export default function Home() {
     try {
       const { data } = await supabase
         .from('drawings')
-        .insert([{ image_url: dataUrl, is_favorite: false }])
+        .insert([{ image_url: dataUrl, caption: drawingCaption, is_favorite: false }])
         .select();
 
       if (data && data.length > 0) {
         setGalleryImages((prev) => [data[0], ...prev]);
       } else {
-        setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: dataUrl, is_favorite: false }, ...prev]);
+        setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: dataUrl, caption: drawingCaption, is_favorite: false }, ...prev]);
       }
     } catch (e) {
-      setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: dataUrl, is_favorite: false }, ...prev]);
+      setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: dataUrl, caption: drawingCaption, is_favorite: false }, ...prev]);
     }
 
+    clearCanvas();
     setToastMessage('🎨 Kunstwerk in Galerie gespeichert! ❤️');
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  // --- KAMERA-FOTO SKALIEREN & SPEICHERN ---
+  // --- KAMERA-FOTO AUSWÄHLEN & KOMPRIMIEREN ---
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -135,8 +143,7 @@ export default function Home() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
-      img.onload = async () => {
-        // Foto komprimieren und auf max. 800px skalieren
+      img.onload = () => {
         const offCanvas = document.createElement('canvas');
         const maxDim = 800;
         let width = img.width;
@@ -160,29 +167,37 @@ export default function Home() {
         ctx?.drawImage(img, 0, 0, width, height);
 
         const compressedDataUrl = offCanvas.toDataURL('image/jpeg', 0.8);
-
-        try {
-          const { data } = await supabase
-            .from('drawings')
-            .insert([{ image_url: compressedDataUrl, is_favorite: false }])
-            .select();
-
-          if (data && data.length > 0) {
-            setGalleryImages((prev) => [data[0], ...prev]);
-          } else {
-            setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: compressedDataUrl, is_favorite: false }, ...prev]);
-          }
-        } catch (err) {
-          console.error(err);
-        }
-
-        setToastMessage('📸 Foto in Galerie gespeichert! ❤️');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
+        setPhotoPreview(compressedDataUrl);
       };
       img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
+  };
+
+  // --- FOTO SPEICHERN ---
+  const savePhoto = async () => {
+    if (!photoPreview) return;
+
+    try {
+      const { data } = await supabase
+        .from('drawings')
+        .insert([{ image_url: photoPreview, caption: photoCaption, is_favorite: false }])
+        .select();
+
+      if (data && data.length > 0) {
+        setGalleryImages((prev) => [data[0], ...prev]);
+      } else {
+        setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: photoPreview, caption: photoCaption, is_favorite: false }, ...prev]);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+
+    setPhotoPreview(null);
+    setPhotoCaption('');
+    setToastMessage('📸 Foto in Galerie gespeichert! ❤️');
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
   };
 
   // --- BUCKETLIST ---
@@ -213,25 +228,29 @@ export default function Home() {
     } catch (e) {}
   };
 
-  // --- GALERIE ---
-  const [galleryImages, setGalleryImages] = useState<{ id: string; image_url: string; is_favorite?: boolean }[]>([]);
+  // --- GALERIE & MODAL ---
+  const [galleryImages, setGalleryImages] = useState<{ id: string | number; image_url: string; caption?: string; is_favorite?: boolean }[]>([]);
+  const [selectedImageModal, setSelectedImageModal] = useState<{ id: string | number; image_url: string; caption?: string } | null>(null);
 
   const fetchGallery = async () => {
     const { data } = await supabase.from('drawings').select('*').order('created_at', { ascending: false });
     if (data) setGalleryImages(data);
   };
 
-  const toggleFavorite = async (id: string, currentFav?: boolean) => {
-    const updated = galleryImages.map(img => img.id === id ? { ...img, is_favorite: !currentFav } : img);
-    setGalleryImages(updated);
+  const toggleFavorite = async (id: string | number, currentFav?: boolean) => {
+    const nextFav = !currentFav;
+    setGalleryImages((prev) =>
+      prev.map((img) => (String(img.id) === String(id) ? { ...img, is_favorite: nextFav } : img))
+    );
+
     try {
-      await supabase.from('drawings').update({ is_favorite: !currentFav }).eq('id', id);
+      await supabase.from('drawings').update({ is_favorite: nextFav }).eq('id', id);
     } catch (e) {}
   };
 
-  const deleteDrawing = async (id: string) => {
-    const updated = galleryImages.filter(img => img.id !== id);
-    setGalleryImages(updated);
+  const deleteDrawing = async (id: string | number) => {
+    setGalleryImages((prev) => prev.filter((img) => String(img.id) !== String(id)));
+
     try {
       await supabase.from('drawings').delete().eq('id', id);
     } catch (e) {}
@@ -306,37 +325,78 @@ export default function Home() {
           
           <div className="white-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             
-            {/* Kamera Button */}
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              ref={fileInputRef}
-              onChange={handlePhotoCapture}
-              style={{ display: 'none' }}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                width: '100%',
-                padding: '12px',
-                marginBottom: '16px',
-                background: '#FAF9FE',
-                border: '2px dashed #B197FC',
-                borderRadius: '16px',
-                fontWeight: '800',
-                color: '#6C5CE7',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
-              }}
-            >
-              📸 Foto mit Kamera knipsen
-            </button>
+            {/* Kamera Button oder Foto-Vorschau */}
+            {!photoPreview ? (
+              <>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  ref={fileInputRef}
+                  onChange={handlePhotoCapture}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    marginBottom: '16px',
+                    background: '#FAF9FE',
+                    border: '2px dashed #B197FC',
+                    borderRadius: '16px',
+                    fontWeight: '800',
+                    color: '#6C5CE7',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  📸 Foto mit Kamera knipsen
+                </button>
+              </>
+            ) : (
+              <div style={{ width: '100%', marginBottom: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <img
+                  src={photoPreview}
+                  alt="Vorschau"
+                  style={{ width: '100%', maxHeight: '250px', objectFit: 'cover', borderRadius: '16px', marginBottom: '12px' }}
+                />
+                <input
+                  type="text"
+                  value={photoCaption}
+                  onChange={(e) => setPhotoCaption(e.target.value)}
+                  placeholder="Nachricht / Bildunterschrift..."
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid #DDD6FE',
+                    outline: 'none',
+                    fontSize: '14px',
+                    marginBottom: '12px'
+                  }}
+                />
+                <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                  <button
+                    onClick={() => setPhotoPreview(null)}
+                    style={{ flex: 1, padding: '10px', background: '#F1F5F9', border: 'none', borderRadius: '12px', fontWeight: '700', color: '#64748B', cursor: 'pointer' }}
+                  >
+                    Verwerfen
+                  </button>
+                  <button
+                    onClick={savePhoto}
+                    style={{ flex: 2, padding: '10px', background: 'linear-gradient(135deg, #B197FC, #E599F7)', border: 'none', borderRadius: '12px', fontWeight: '800', color: 'white', cursor: 'pointer' }}
+                  >
+                    Foto senden ❤️
+                  </button>
+                </div>
+              </div>
+            )}
 
-            {/* Color Selector */}
+            {/* Farb-Auswahl */}
             <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
               {['#6C5CE7', '#EC4899', '#EF4444', '#10B981', '#3B82F6', '#000000'].map((c) => (
                 <button
@@ -354,11 +414,11 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Drawing Canvas */}
+            {/* Canvas */}
             <canvas
               ref={canvasRef}
               width={330}
-              height={320}
+              height={280}
               onMouseDown={startDrawing}
               onMouseMove={draw}
               onMouseUp={stopDrawing}
@@ -373,8 +433,25 @@ export default function Home() {
               }}
             />
 
-            {/* Controls */}
-            <div style={{ display: 'flex', gap: '12px', width: '100%', marginTop: '16px' }}>
+            {/* Bildunterschrift fürs Malen */}
+            <input
+              type="text"
+              value={drawingCaption}
+              onChange={(e) => setDrawingCaption(e.target.value)}
+              placeholder="Süße Nachricht dazuschreiben..."
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                border: '1px solid #DDD6FE',
+                outline: 'none',
+                fontSize: '14px',
+                marginTop: '12px'
+              }}
+            />
+
+            {/* Knöpfe */}
+            <div style={{ display: 'flex', gap: '12px', width: '100%', marginTop: '12px' }}>
               <button
                 onClick={clearCanvas}
                 style={{ flex: 1, padding: '12px', background: '#F1F5F9', border: 'none', borderRadius: '16px', fontWeight: '700', color: '#64748B', cursor: 'pointer' }}
@@ -450,63 +527,137 @@ export default function Home() {
         </div>
       )}
 
-{/* ================= TAB 4: GALERIE ================= */}
-  {activeTab === 'galerie' && (
-    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <p className="section-title">UNSERE GALERIE</p>
-      <div style={{ width: '100%', maxWidth: '390px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        {galleryImages.length === 0 ? (
-          <div className="white-card" style={{ gridColumn: 'span 2', textAlign: 'center', color: '#94A3B8' }}>
-            Noch keine Fotos oder Zeichnungen da. Male oder knipse etwas im zweiten Tab! 🎨📸
+      {/* ================= TAB 4: GALERIE ================= */}
+      {activeTab === 'galerie' && (
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <p className="section-title">UNSERE GALERIE</p>
+          <div style={{ width: '100%', maxWidth: '390px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            {galleryImages.length === 0 ? (
+              <div className="white-card" style={{ gridColumn: 'span 2', textAlign: 'center', color: '#94A3B8' }}>
+                Noch keine Fotos oder Zeichnungen da. Male oder knipse etwas im zweiten Tab! 🎨📸
+              </div>
+            ) : (
+              galleryImages.map((img) => (
+                <div
+                  key={img.id}
+                  className="white-card"
+                  style={{
+                    padding: '8px',
+                    marginBottom: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    height: '100%'
+                  }}
+                >
+                  {/* Klick aufs Bild öffnet die Großansicht */}
+                  <div
+                    onClick={() => setSelectedImageModal(img)}
+                    style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: '16px', overflow: 'hidden', background: '#FAF9FE', cursor: 'pointer' }}
+                  >
+                    <img
+                      src={img.image_url}
+                      alt="Kunstwerk"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        display: 'block'
+                      }}
+                    />
+                  </div>
+
+                  {/* Bildunterschrift anzeigen, falls vorhanden */}
+                  {img.caption && (
+                    <p style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic', margin: '6px 4px 2px 4px', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      "{img.caption}"
+                    </p>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', padding: '0 4px' }}>
+                    <button
+                      onClick={() => toggleFavorite(img.id, img.is_favorite)}
+                      style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: '2px 4px' }}
+                      title="Favorisieren"
+                    >
+                      {img.is_favorite ? '❤️' : '🤍'}
+                    </button>
+                    <button
+                      onClick={() => deleteDrawing(img.id)}
+                      style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', padding: '2px 4px' }}
+                      title="Löschen"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-        ) : (
-          galleryImages.map((img) => (
-            <div
-              key={img.id}
-              className="white-card"
+        </div>
+      )}
+
+      {/* ================= GROSSANSICHT MODAL (LIGHTBOX) ================= */}
+      {selectedImageModal && (
+        <div
+          onClick={() => setSelectedImageModal(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            zIndex: 300,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              maxWidth: '90%',
+              maxHeight: '80%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center'
+            }}
+          >
+            <button
+              onClick={() => setSelectedImageModal(null)}
               style={{
-                padding: '8px',
-                marginBottom: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                height: '100%'
+                position: 'absolute',
+                top: '-40px',
+                right: '0',
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                fontSize: '28px',
+                cursor: 'pointer'
               }}
             >
-              <div style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: '16px', overflow: 'hidden', background: '#FAF9FE' }}>
-                <img
-                  src={img.image_url}
-                  alt="Kunstwerk"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'contain',
-                    display: 'block'
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', padding: '0 4px' }}>
-                <button
-                  onClick={() => toggleFavorite(img.id, img.is_favorite)}
-                  style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: '2px 4px' }}
-                  title="Favorisieren"
-                >
-                  {img.is_favorite ? '❤️' : '🤍'}
-                </button>
-                <button
-                  onClick={() => deleteDrawing(img.id)}
-                  style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', padding: '2px 4px' }}
-                  title="Löschen"
-                >
-                  🗑️
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  )}
+              ✕
+            </button>
+            <img
+              src={selectedImageModal.image_url}
+              alt="Großansicht"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '70vh',
+                borderRadius: '16px',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                objectFit: 'contain'
+              }}
+            />
+            {selectedImageModal.caption && (
+              <p style={{ color: 'white', fontSize: '16px', fontStyle: 'italic', marginTop: '16px', textAlign: 'center' }}>
+                "{selectedImageModal.caption}"
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Notification Toast */}
       {showToast && (
