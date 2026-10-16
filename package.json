@@ -2,12 +2,12 @@
   "name": "unsere-liebes-app",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
+"scripts": {
   "dev": "next dev",
   "build": "next build --webpack",
   "start": "next start",
   "lint": "next lint"
-  }
+},
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",
