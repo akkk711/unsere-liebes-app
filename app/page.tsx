@@ -12,6 +12,56 @@ export default function Home() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [currentUserProfile, setCurrentUserProfile] = useState<{ display_name: string } | null>(null);
 
+  // --- PUSH NOTIFICATION SUBSCRIBE LOGIC ---
+const [pushSubscribed, setPushSubscribed] = useState(false);
+
+useEffect(() => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW Registration error:', err));
+  }
+}, []);
+
+const subscribeToPush = async () => {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    alert('Push-Benachrichtigungen werden von diesem Browser leider nicht unterstützt.');
+    return;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const permission = await Notification.requestPermission();
+
+    if (permission !== 'granted') {
+      alert('Berechtigung für Benachrichtigungen wurde abgelehnt.');
+      return;
+    }
+
+    const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!publicVapidKey) {
+      alert('VAPID Public Key fehlt.');
+      return;
+    }
+
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: publicVapidKey
+    });
+
+    // In Supabase speichern
+    if (session?.user) {
+      await supabase.from('push_subscriptions').insert([{
+        user_id: session.user.id,
+        subscription: subscription
+      }]);
+      setPushSubscribed(true);
+      alert('🔔 Benachrichtigungen erfolgreich aktiviert!');
+    }
+  } catch (err: any) {
+    console.error(err);
+    alert(`Fehler beim Aktivieren: ${err.message}`);
+  }
+};
+
   const [activeTab, setActiveTab] = useState<'home' | 'malen' | 'ziele' | 'galerie'>('home');
   
   // --- ZEIT & JAHRESTAG ---
@@ -176,6 +226,7 @@ export default function Home() {
     setDrawingCaption('');
   };
 
+// --- ZEICHNUNG SPEICHERN ---
   const saveDrawing = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -193,6 +244,18 @@ export default function Home() {
       } else {
         setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: dataUrl, caption: drawingCaption, author_name: author, is_favorite: false }, ...prev]);
       }
+
+      // 🔔 PUSH-BENACHRICHTIGUNG AN PARTNER SENDEN
+      fetch('/api/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `🎨 Neue Zeichnung von ${author}!`,
+          body: drawingCaption ? `"${drawingCaption}"` : 'Schau dir das neue Bild in eurer Galerie an ❤️',
+          senderUserId: session?.user?.id
+        })
+      }).catch(err => console.log('Push Fehler:', err));
+
     } catch (e) {
       setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: dataUrl, caption: drawingCaption, author_name: author, is_favorite: false }, ...prev]);
     }
@@ -203,44 +266,7 @@ export default function Home() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const offCanvas = document.createElement('canvas');
-        const maxDim = 800;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxDim) {
-            height *= maxDim / width;
-            width = maxDim;
-          }
-        } else {
-          if (height > maxDim) {
-            width *= maxDim / height;
-            height = maxDim;
-          }
-        }
-
-        offCanvas.width = width;
-        offCanvas.height = height;
-        const ctx = offCanvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-
-        const compressedDataUrl = offCanvas.toDataURL('image/jpeg', 0.8);
-        setPhotoPreview(compressedDataUrl);
-      };
-      img.src = event.target?.result as string;
-    };
-    reader.readAsDataURL(file);
-  };
-
+  // --- FOTO SPEICHERN ---
   const savePhoto = async () => {
     if (!photoPreview) return;
     const author = currentUserProfile?.display_name || 'Partner';
@@ -256,6 +282,18 @@ export default function Home() {
       } else {
         setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: photoPreview, caption: photoCaption, author_name: author, is_favorite: false }, ...prev]);
       }
+
+      // 🔔 PUSH-BENACHRICHTIGUNG AN PARTNER SENDEN
+      fetch('/api/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `📸 Neues Foto von ${author}!`,
+          body: photoCaption ? `"${photoCaption}"` : 'Schau dir das neue Foto in eurer Galerie an ❤️',
+          senderUserId: session?.user?.id
+        })
+      }).catch(err => console.log('Push Fehler:', err));
+
     } catch (err) {
       console.error(err);
     }
@@ -410,13 +448,30 @@ export default function Home() {
             <span style={{ fontSize: '14px', fontWeight: '700', color: '#4A3E6D' }}>
               Hallo, {currentUserProfile?.display_name || 'Liebling'} 👋
             </span>
-            <button
-              onClick={handleLogout}
-              style={{ background: '#F1F5F9', border: 'none', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', color: '#64748B', cursor: 'pointer' }}
-            >
-              Abmelden
-            </button>
-          </div>
+  <div style={{ display: 'flex', gap: '8px' }}>
+    <button
+      onClick={subscribeToPush}
+      style={{
+        background: pushSubscribed ? '#E2E8F0' : '#DDD6FE',
+        border: 'none',
+        padding: '6px 12px',
+        borderRadius: '20px',
+        fontSize: '12px',
+        fontWeight: '700',
+        color: '#4A3E6D',
+        cursor: 'pointer'
+      }}
+    >
+      {pushSubscribed ? '🔔 Aktiv' : '🔔 Push an'}
+    </button>
+    <button
+      onClick={handleLogout}
+      style={{ background: '#F1F5F9', border: 'none', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', color: '#64748B', cursor: 'pointer' }}
+    >
+      Abmelden
+    </button>
+  </div>
+</div>
 
           {/* Mood Bar */}
           <p className="section-title">DEINE STIMMUNG HEUTE</p>
