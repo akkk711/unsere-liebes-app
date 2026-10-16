@@ -8,7 +8,10 @@ self.addEventListener('push', function (event) {
       body: data.body || 'Neue Benachrichtigung für dich!',
       icon: '/icon.png',
       badge: '/icon.png',
-      data: { url: data.url || '/' }
+      data: {
+        url: data.url || '/',
+        type: data.type || 'general'
+      }
     };
 
     event.waitUntil(self.registration.showNotification(title, options));
@@ -22,8 +25,10 @@ self.addEventListener('notificationclick', function (event) {
 
   const title = encodeURIComponent(event.notification.title || '');
   const body = encodeURIComponent(event.notification.body || '');
-  // Parameter an die URL anfügen
-  const targetUrl = `/?notifTitle=${title}&notifBody=${body}`;
+  const notifData = event.notification.data || {};
+  const type = encodeURIComponent(notifData.type || 'general');
+
+  const targetUrl = `/?notifTitle=${title}&notifBody=${body}&notifType=${type}`;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {

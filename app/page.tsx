@@ -16,20 +16,21 @@ export default function Home() {
 const [pushSubscribed, setPushSubscribed] = useState(false);
 
 // --- BENACHRICHTIGUNG POPUP STATE & URL CHECKER ---
-  const [notificationModal, setNotificationModal] = useState<{ title: string; body: string } | null>(null);
+  const [notificationModal, setNotificationModal] = useState<{ title: string; body: string; type?: string } | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const notifTitle = params.get('notifTitle');
       const notifBody = params.get('notifBody');
+      const notifType = params.get('notifType');
 
       if (notifTitle || notifBody) {
         setNotificationModal({
           title: decodeURIComponent(notifTitle || 'Neue Nachricht ❤️'),
-          body: decodeURIComponent(notifBody || '')
+          body: decodeURIComponent(notifBody || ''),
+          type: decodeURIComponent(notifType || 'general')
         });
-        // URL aufräumen, damit beim Neuladen das Pop-up nicht erneut erscheint
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
@@ -175,16 +176,57 @@ const subscribeToPush = async () => {
     return () => clearInterval(timer);
   }, []);
 
-  // --- MOOD TRACKER ---
-  const [selectedMood, setSelectedMood] = useState<string>('😊');
-
+ // --- MOOD TRACKER & PUSH ---
+ const [selectedMood, setSelectedMood] = useState<string>('😊');
+ 
   const handleMoodSelect = async (emoji: string) => {
     setSelectedMood(emoji);
+    const author = currentUserProfile?.display_name || 'Liebling';
+
+    let moodText = `${author} fühlt sich gerade ${emoji}`;
+    if (emoji === '😊') moodText = `${author} ist gerade super gut drauf! 😊`;
+    if (emoji === '🥰') moodText = `${author} schickt dir ganz viel Liebe! 🥰`;
+    if (emoji === '🥱') moodText = `${author} ist gerade ziemlich müde... 🥱`;
+    if (emoji === '😢') moodText = `${author} ist gerade traurig, schick eine Umarmung! 😢`;
+
     try {
-      await supabase.from('moods').insert([{ mood_emoji: emoji, user_name: currentUserProfile?.display_name || 'Partner' }]);
+      await supabase.from('moods').insert([{ mood_emoji: emoji, user_name: author }]);
     } catch (e) {
       console.log('Mood gesichert');
     }
+
+    // Push-Benachrichtigung an den Partner schicken
+    fetch('/api/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `Stimmung von ${author} ${emoji}`,
+        body: moodText,
+        senderUserId: session?.user?.id,
+        type: 'mood'
+      })
+    }).catch(err => console.log('Push Fehler:', err));
+  };
+
+  // --- UMARMUNG / ANTWORT ZURÜCKSENDEN ---
+  const sendReplyNotification = async () => {
+    const author = currentUserProfile?.display_name || 'Liebling';
+
+    fetch('/api/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `Liebesgruss von ${author}! 🫂❤️`,
+        body: `${author} schickt dir eine feste Umarmung & ganz viel Liebe zurück!`,
+        senderUserId: session?.user?.id,
+        type: 'general'
+      })
+    }).catch(err => console.log('Push Fehler:', err));
+
+    setNotificationModal(null);
+    setToastMessage('🫂 Umarmung wurde gesendet! ❤️');
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
   };
 
   // --- MALEN & KAMERA (CANVAS + PHOTO) ---
@@ -1094,6 +1136,108 @@ const subscribeToPush = async () => {
           {toastMessage}
         </div>
       )}
+      
+      {/* ================= BENACHRICHTIGUNGS-MODAL ================= */}
+  {notificationModal && (
+    <div
+      onClick={() => setNotificationModal(null)}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        zIndex: 400,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px'
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="white-card"
+        style={{
+          width: '100%',
+          maxWidth: '340px',
+          padding: '24px',
+          textAlign: 'center',
+          marginBottom: 0,
+          boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
+        }}
+      >
+        <span style={{ fontSize: '40px', display: 'block', marginBottom: '12px' }}>
+          {notificationModal.type === 'mood' ? '🫂' : '💌'}
+        </span>
+        <h3 style={{ fontSize: '18px', color: '#4A3E6D', fontWeight: '800', marginBottom: '8px' }}>
+          {notificationModal.title}
+        </h3>
+        {notificationModal.body && (
+          <p style={{ fontSize: '14px', color: '#64748B', marginBottom: '20px', lineHeight: '1.4' }}>
+            {notificationModal.body}
+          </p>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {notificationModal.type === 'mood' ? (
+            <button
+              onClick={sendReplyNotification}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'linear-gradient(135deg, #B197FC, #E599F7)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '14px',
+                fontWeight: '800',
+                fontSize: '14px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(177,151,252,0.4)'
+              }}
+            >
+              Umarmung zurücksenden 🫂❤️
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setActiveTab('galerie');
+                setNotificationModal(null);
+              }}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'linear-gradient(135deg, #B197FC, #E599F7)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '14px',
+                fontWeight: '800',
+                fontSize: '14px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(177,151,252,0.4)'
+              }}
+            >
+              Zur Galerie ❤️
+            </button>
+          )}
+
+          <button
+            onClick={() => setNotificationModal(null)}
+            style={{
+              width: '100%',
+              padding: '10px',
+              background: '#F1F5F9',
+              color: '#64748B',
+              border: 'none',
+              borderRadius: '14px',
+              fontWeight: '700',
+              fontSize: '13px',
+              cursor: 'pointer'
+            }}
+          >
+            Schließen
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
 
       {/* ================= BOTTOM NAVIGATION BAR ================= */}
       <div className="bottom-nav">
@@ -1129,7 +1273,6 @@ const subscribeToPush = async () => {
           <span>Galerie</span>
         </button>
       </div>
-
     </div>
   );
 }

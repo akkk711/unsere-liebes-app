@@ -15,9 +15,8 @@ if (publicKey && privateKey) {
 
 export async function POST(request: Request) {
   try {
-    const { title, body, senderUserId } = await request.json();
+    const { title, body, senderUserId, type = 'general' } = await request.json();
 
-    // 1. Alle Push-Subscriptions aus Supabase holen
     const { data: subscriptions, error } = await supabase
       .from('push_subscriptions')
       .select('*');
@@ -26,17 +25,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: error?.message }, { status: 500 });
     }
 
-    // 2. Benachrichtigung an alle registrierten Geräte senden (außer dem eigenen Absender)
     const sendPromises = subscriptions
       .filter((sub) => sub.user_id !== senderUserId)
       .map(async (sub) => {
         try {
           await webpush.sendNotification(
             sub.subscription,
-            JSON.stringify({ title, body, url: '/' })
+            JSON.stringify({ title, body, type, url: '/' })
           );
         } catch (err: any) {
-          // Veraltete / ungültige Abonnements automatisch aufräumen
           if (err.statusCode === 410 || err.statusCode === 404) {
             await supabase.from('push_subscriptions').delete().eq('id', sub.id);
           }
