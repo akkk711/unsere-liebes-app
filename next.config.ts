@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  eslint: {
+    // Diese Zeile sagt Vercel: Ignoriere fehlendes ESLint
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default withPWA(nextConfig);
