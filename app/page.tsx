@@ -189,13 +189,10 @@ export default function Home() {
             <h1 style={{ fontSize: '64px', color: '#5B4699', fontWeight: '900', margin: '4px 0' }}>
               {timeTogether.days}
             </h1>
-            <p style={{ fontSize: '13px', color: '#8E8A9F', fontWeight: '800', tracking: '1px', marginBottom: '8px' }}>
+            <p style={{ fontSize: '13px', color: '#8E8A9F', fontWeight: '800', tracking: '1px', marginBottom: '20px' }}>
               TAGEN
             </p>
-            <p style={{ fontSize: '15px', color: '#334155', fontWeight: '600', marginBottom: '20px' }}>
-              {timeTogether.hours} Std. {timeTogether.minutes} Min. {timeTogether.seconds} Sek.
-            </p>
-
+          
             <div className="pink-gradient-banner">
               <p style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>Nächster Jahrestag in</p>
               <p style={{ margin: '4px 0 0 0', fontSize: '26px', fontWeight: '800' }}>
