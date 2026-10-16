@@ -450,41 +450,63 @@ export default function Home() {
         </div>
       )}
 
-      {/* ================= TAB 4: GALERIE ================= */}
-      {activeTab === 'galerie' && (
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <p className="section-title">UNSERE GALERIE</p>
-          <div style={{ width: '100%', maxWidth: '390px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            {galleryImages.length === 0 ? (
-              <div className="white-card" style={{ gridColumn: 'span 2', textAlign: 'center', color: '#94A3B8' }}>
-                Noch keine Fotos oder Zeichnungen da. Male oder knipse etwas im zweiten Tab! 🎨📸
-              </div>
-            ) : (
-              galleryImages.map((img) => (
-                <div key={img.id} className="white-card" style={{ padding: '8px', marginBottom: 0 }}>
-                  <img src={img.image_url} alt="Kunstwerk" style={{ width: '100%', borderRadius: '16px', background: '#FAF9FE', display: 'block' }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', padding: '0 4px' }}>
-                    <button
-                      onClick={() => toggleFavorite(img.id, img.is_favorite)}
-                      style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: '2px 4px' }}
-                      title="Favorisieren"
-                    >
-                      {img.is_favorite ? '❤️' : '🤍'}
-                    </button>
-                    <button
-                      onClick={() => deleteDrawing(img.id)}
-                      style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', padding: '2px 4px' }}
-                      title="Löschen"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
+{/* ================= TAB 4: GALERIE ================= */}
+  {activeTab === 'galerie' && (
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <p className="section-title">UNSERE GALERIE</p>
+      <div style={{ width: '100%', maxWidth: '390px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        {galleryImages.length === 0 ? (
+          <div className="white-card" style={{ gridColumn: 'span 2', textAlign: 'center', color: '#94A3B8' }}>
+            Noch keine Fotos oder Zeichnungen da. Male oder knipse etwas im zweiten Tab! 🎨📸
           </div>
-        </div>
-      )}
+        ) : (
+          galleryImages.map((img) => (
+            <div
+              key={img.id}
+              className="white-card"
+              style={{
+                padding: '8px',
+                marginBottom: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                height: '100%'
+              }}
+            >
+              <div style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: '16px', overflow: 'hidden', background: '#FAF9FE' }}>
+                <img
+                  src={img.image_url}
+                  alt="Kunstwerk"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    display: 'block'
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', padding: '0 4px' }}>
+                <button
+                  onClick={() => toggleFavorite(img.id, img.is_favorite)}
+                  style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: '2px 4px' }}
+                  title="Favorisieren"
+                >
+                  {img.is_favorite ? '❤️' : '🤍'}
+                </button>
+                <button
+                  onClick={() => deleteDrawing(img.id)}
+                  style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', padding: '2px 4px' }}
+                  title="Löschen"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )}
 
       {/* Notification Toast */}
       {showToast && (
