@@ -19,13 +19,22 @@ self.addEventListener('push', function (event) {
 
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
+
+  const title = encodeURIComponent(event.notification.title || '');
+  const body = encodeURIComponent(event.notification.body || '');
+  // Parameter an die URL anfügen
+  const targetUrl = `/?notifTitle=${title}&notifBody=${body}`;
+
   event.waitUntil(
-    clients.matchAll({ type: 'window' }).then((clientList) => {
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (let i = 0; i < clientList.length; i++) {
         let client = clientList[i];
-        if (client.url === '/' && 'focus' in client) return client.focus();
+        if (client.url.includes(self.location.origin) && 'navigate' in client) {
+          client.focus();
+          return client.navigate(targetUrl);
+        }
       }
-      if (clients.openWindow) return clients.openWindow('/');
+      if (clients.openWindow) return clients.openWindow(targetUrl);
     })
   );
 });

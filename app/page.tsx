@@ -15,6 +15,26 @@ export default function Home() {
   // --- PUSH NOTIFICATION SUBSCRIBE LOGIC ---
 const [pushSubscribed, setPushSubscribed] = useState(false);
 
+// --- BENACHRICHTIGUNG POPUP STATE & URL CHECKER ---
+  const [notificationModal, setNotificationModal] = useState<{ title: string; body: string } | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const notifTitle = params.get('notifTitle');
+      const notifBody = params.get('notifBody');
+
+      if (notifTitle || notifBody) {
+        setNotificationModal({
+          title: decodeURIComponent(notifTitle || 'Neue Nachricht ❤️'),
+          body: decodeURIComponent(notifBody || '')
+        });
+        // URL aufräumen, damit beim Neuladen das Pop-up nicht erneut erscheint
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  }, []);
+
 useEffect(() => {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW Registration error:', err));
