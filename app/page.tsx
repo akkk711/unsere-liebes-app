@@ -66,7 +66,7 @@ const [pushSubscribed, setPushSubscribed] = useState(false);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
-  
+
 useEffect(() => {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW Registration error:', err));
@@ -247,6 +247,28 @@ const subscribeToPush = async () => {
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
+
+  // --- UMARMUNG / ANTWORT ZURÜCKSENDEN ---
+  const sendReplyNotification = async () => {
+    const author = currentUserProfile?.display_name || 'Liebling';
+
+    fetch('/api/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `Liebesgruss von ${author}! 🫂❤️`,
+        body: `${author} schickt dir eine feste Umarmung & ganz viel Liebe zurück!`,
+        senderUserId: session?.user?.id,
+        type: 'general'
+      })
+    }).catch(err => console.log('Push Fehler:', err));
+
+    setNotificationModal(null);
+    setToastMessage('🫂 Umarmung wurde gesendet! ❤️');
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
   // --- MALEN & KAMERA (CANVAS + PHOTO) ---
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1152,6 +1174,108 @@ const subscribeToPush = async () => {
           zIndex: 200
         }}>
           {toastMessage}
+        </div>
+      )}
+
+{/* ================= BENACHRICHTIGUNGS-MODAL ================= */}
+      {notificationModal && (
+        <div
+          onClick={() => setNotificationModal(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            zIndex: 400,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="white-card"
+            style={{
+              width: '100%',
+              maxWidth: '340px',
+              padding: '24px',
+              textAlign: 'center',
+              marginBottom: 0,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
+            }}
+          >
+            <span style={{ fontSize: '40px', display: 'block', marginBottom: '12px' }}>
+              {notificationModal.type === 'mood' ? '🫂' : '💌'}
+            </span>
+            <h3 style={{ fontSize: '18px', color: '#4A3E6D', fontWeight: '800', marginBottom: '8px' }}>
+              {notificationModal.title}
+            </h3>
+            {notificationModal.body && (
+              <p style={{ fontSize: '14px', color: '#64748B', marginBottom: '20px', lineHeight: '1.4' }}>
+                {notificationModal.body}
+              </p>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {notificationModal.type === 'mood' ? (
+                <button
+                  onClick={sendReplyNotification}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: 'linear-gradient(135deg, #B197FC, #E599F7)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '14px',
+                    fontWeight: '800',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(177,151,252,0.4)'
+                  }}
+                >
+                  Umarmung zurücksenden 🫂❤️
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setActiveTab('galerie');
+                    setNotificationModal(null);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: 'linear-gradient(135deg, #B197FC, #E599F7)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '14px',
+                    fontWeight: '800',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(177,151,252,0.4)'
+                  }}
+                >
+                  Zur Galerie ❤️
+                </button>
+              )}
+
+              <button
+                onClick={() => setNotificationModal(null)}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  background: '#F1F5F9',
+                  color: '#64748B',
+                  border: 'none',
+                  borderRadius: '14px',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              >
+                Schließen
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
