@@ -4,12 +4,80 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export default function Home() {
+  // --- AUTH & PROFILE STATE ---
+  const [session, setSession] = useState<any>(null);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authDisplayName, setAuthDisplayName] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [currentUserProfile, setCurrentUserProfile] = useState<{ display_name: string } | null>(null);
+
   const [activeTab, setActiveTab] = useState<'home' | 'malen' | 'ziele' | 'galerie'>('home');
   
   // --- ZEIT & JAHRESTAG ---
   const startDate = new Date('2026-08-20T00:00:00'); // Euer Beziehungsstart
   const [timeTogether, setTimeTogether] = useState({ days: 57, hours: 0, minutes: 0, seconds: 0 });
   const [daysToNextAnniversary, setDaysToNextAnniversary] = useState(308);
+
+  // --- AUTH SESSION PROFIEL CHECK ---
+  const fetchProfile = async (userId: string) => {
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    if (data) {
+      setCurrentUserProfile(data);
+    }
+  };
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) fetchProfile(session.user.id);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setCurrentUserProfile(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isRegistering) {
+      const { data, error } = await supabase.auth.signUp({
+        email: authEmail,
+        password: authPassword,
+      });
+
+      if (error) {
+        alert(`Registrierung fehlgeschlagen: ${error.message}`);
+        return;
+      }
+
+      if (data.user) {
+        const nameToSave = authDisplayName.trim() || 'Partner';
+        await supabase.from('profiles').insert([{ id: data.user.id, display_name: nameToSave }]);
+        setCurrentUserProfile({ display_name: nameToSave });
+      }
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: authEmail,
+        password: authPassword,
+      });
+
+      if (error) {
+        alert(`Login fehlgeschlagen: ${error.message}`);
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
 
   useEffect(() => {
     const updateTimer = () => {
@@ -43,7 +111,7 @@ export default function Home() {
   const handleMoodSelect = async (emoji: string) => {
     setSelectedMood(emoji);
     try {
-      await supabase.from('moods').insert([{ mood_emoji: emoji, user_name: 'Partner' }]);
+      await supabase.from('moods').insert([{ mood_emoji: emoji, user_name: currentUserProfile?.display_name || 'Partner' }]);
     } catch (e) {
       console.log('Mood gesichert');
     }
@@ -57,7 +125,6 @@ export default function Home() {
   const [brushSize, setBrushSize] = useState(4);
   const [drawingCaption, setDrawingCaption] = useState('');
   
-  // Foto-Vorschau vor dem Senden
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoCaption, setPhotoCaption] = useState('');
 
@@ -113,20 +180,21 @@ export default function Home() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const dataUrl = canvas.toDataURL('image/png');
+    const author = currentUserProfile?.display_name || 'Partner';
 
     try {
       const { data } = await supabase
         .from('drawings')
-        .insert([{ image_url: dataUrl, caption: drawingCaption, is_favorite: false }])
+        .insert([{ image_url: dataUrl, caption: drawingCaption, author_name: author, is_favorite: false }])
         .select();
 
       if (data && data.length > 0) {
         setGalleryImages((prev) => [data[0], ...prev]);
       } else {
-        setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: dataUrl, caption: drawingCaption, is_favorite: false }, ...prev]);
+        setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: dataUrl, caption: drawingCaption, author_name: author, is_favorite: false }, ...prev]);
       }
     } catch (e) {
-      setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: dataUrl, caption: drawingCaption, is_favorite: false }, ...prev]);
+      setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: dataUrl, caption: drawingCaption, author_name: author, is_favorite: false }, ...prev]);
     }
 
     clearCanvas();
@@ -135,7 +203,6 @@ export default function Home() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  // --- KAMERA-FOTO AUSWÄHLEN & KOMPRIMIEREN ---
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -174,20 +241,20 @@ export default function Home() {
     reader.readAsDataURL(file);
   };
 
-  // --- FOTO SPEICHERN ---
   const savePhoto = async () => {
     if (!photoPreview) return;
+    const author = currentUserProfile?.display_name || 'Partner';
 
     try {
       const { data } = await supabase
         .from('drawings')
-        .insert([{ image_url: photoPreview, caption: photoCaption, is_favorite: false }])
+        .insert([{ image_url: photoPreview, caption: photoCaption, author_name: author, is_favorite: false }])
         .select();
 
       if (data && data.length > 0) {
         setGalleryImages((prev) => [data[0], ...prev]);
       } else {
-        setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: photoPreview, caption: photoCaption, is_favorite: false }, ...prev]);
+        setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: photoPreview, caption: photoCaption, author_name: author, is_favorite: false }, ...prev]);
       }
     } catch (err) {
       console.error(err);
@@ -229,8 +296,8 @@ export default function Home() {
   };
 
   // --- GALERIE & MODAL ---
-  const [galleryImages, setGalleryImages] = useState<{ id: string | number; image_url: string; caption?: string; is_favorite?: boolean }[]>([]);
-  const [selectedImageModal, setSelectedImageModal] = useState<{ id: string | number; image_url: string; caption?: string } | null>(null);
+  const [galleryImages, setGalleryImages] = useState<{ id: string | number; image_url: string; caption?: string; author_name?: string; is_favorite?: boolean }[]>([]);
+  const [selectedImageModal, setSelectedImageModal] = useState<{ id: string | number; image_url: string; caption?: string; author_name?: string } | null>(null);
 
   const fetchGallery = async () => {
     const { data } = await supabase.from('drawings').select('*').order('created_at', { ascending: false });
@@ -261,6 +328,76 @@ export default function Home() {
     if (activeTab === 'galerie') fetchGallery();
   }, [activeTab]);
 
+  // --- ANMELDE-BILDSCHIRM (FALLS NICHT EINGELOGGT) ---
+  if (!session) {
+    return (
+      <div className="app-viewport" style={{ justifyContent: 'center' }}>
+        <div className="white-card" style={{ width: '100%', maxWidth: '360px', padding: '24px', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '22px', color: '#4A3E6D', fontWeight: '800', marginBottom: '8px' }}>
+            Unsere Liebes-App ❤️
+          </h2>
+          <p style={{ fontSize: '14px', color: '#64748B', marginBottom: '20px' }}>
+            {isRegistering ? 'Erstelle euer persönliches Profil' : 'Melde dich an, um eure App zu öffnen'}
+          </p>
+
+          <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {isRegistering && (
+              <input
+                type="text"
+                placeholder="Dein Vorname (z. B. Anna)"
+                value={authDisplayName}
+                onChange={(e) => setAuthDisplayName(e.target.value)}
+                required
+                style={{ padding: '12px', borderRadius: '12px', border: '1px solid #DDD6FE', outline: 'none' }}
+              />
+            )}
+            <input
+              type="email"
+              placeholder="E-Mail Adresse"
+              value={authEmail}
+              onChange={(e) => setAuthEmail(e.target.value)}
+              required
+              style={{ padding: '12px', borderRadius: '12px', border: '1px solid #DDD6FE', outline: 'none' }}
+            />
+            <input
+              type="password"
+              placeholder="Passwort"
+              value={authPassword}
+              onChange={(e) => setAuthPassword(e.target.value)}
+              required
+              style={{ padding: '12px', borderRadius: '12px', border: '1px solid #DDD6FE', outline: 'none' }}
+            />
+
+            <button
+              type="submit"
+              style={{
+                padding: '12px',
+                background: 'linear-gradient(135deg, #B197FC, #E599F7)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontWeight: '800',
+                fontSize: '15px',
+                cursor: 'pointer',
+                marginTop: '8px'
+              }}
+            >
+              {isRegistering ? 'Konto erstellen ✨' : 'Einloggen ❤️'}
+            </button>
+          </form>
+
+          <button
+            onClick={() => setIsRegistering(!isRegistering)}
+            style={{ background: 'none', border: 'none', color: '#6C5CE7', fontSize: '13px', marginTop: '16px', fontWeight: '600', cursor: 'pointer' }}
+          >
+            {isRegistering ? 'Bereits ein Konto? Hier einloggen' : 'Noch kein Konto? Hier registrieren'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- HAUPT-APP (EINGELOGGT) ---
   return (
     <div className="app-viewport">
 
@@ -268,6 +405,19 @@ export default function Home() {
       {activeTab === 'home' && (
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           
+          {/* User Bar */}
+          <div style={{ width: '100%', maxWidth: '390px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <span style={{ fontSize: '14px', fontWeight: '700', color: '#4A3E6D' }}>
+              Hallo, {currentUserProfile?.display_name || 'Liebling'} 👋
+            </span>
+            <button
+              onClick={handleLogout}
+              style={{ background: '#F1F5F9', border: 'none', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', color: '#64748B', cursor: 'pointer' }}
+            >
+              Abmelden
+            </button>
+          </div>
+
           {/* Mood Bar */}
           <p className="section-title">DEINE STIMMUNG HEUTE</p>
           <div className="mood-card">
@@ -325,7 +475,6 @@ export default function Home() {
           
           <div className="white-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             
-            {/* Kamera Button oder Foto-Vorschau */}
             {!photoPreview ? (
               <>
                 <input
@@ -396,7 +545,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Farb-Auswahl */}
             <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
               {['#6C5CE7', '#EC4899', '#EF4444', '#10B981', '#3B82F6', '#000000'].map((c) => (
                 <button
@@ -414,7 +562,6 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Canvas */}
             <canvas
               ref={canvasRef}
               width={330}
@@ -433,7 +580,6 @@ export default function Home() {
               }}
             />
 
-            {/* Bildunterschrift fürs Malen */}
             <input
               type="text"
               value={drawingCaption}
@@ -450,7 +596,6 @@ export default function Home() {
               }}
             />
 
-            {/* Knöpfe */}
             <div style={{ display: 'flex', gap: '12px', width: '100%', marginTop: '12px' }}>
               <button
                 onClick={clearCanvas}
@@ -475,7 +620,6 @@ export default function Home() {
           <p className="section-title">UNSERE BUCKETLIST</p>
           <div className="white-card">
             
-            {/* Input New Goal */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
               <input
                 type="text"
@@ -492,7 +636,6 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Goal Items */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {goals.map((goal) => (
                 <div
@@ -553,7 +696,7 @@ export default function Home() {
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
-                        minHeight: '60vh',
+                        minHeight: '58vh',
                         boxShadow: '0 10px 30px rgba(108, 92, 231, 0.12)'
                       }}
                     >
@@ -585,24 +728,28 @@ export default function Home() {
                         />
                       </div>
 
+                      {latest.author_name && (
+                        <p style={{ fontSize: '11px', color: '#8E8A9F', fontWeight: '800', letterSpacing: '0.5px', marginTop: '8px', textAlign: 'center' }}>
+                          VON {latest.author_name.toUpperCase()}
+                        </p>
+                      )}
+
                       {latest.caption && (
-                        <p style={{ fontSize: '15px', color: '#475569', fontStyle: 'italic', margin: '12px 8px 4px 8px', textAlign: 'center', fontWeight: '500' }}>
+                        <p style={{ fontSize: '15px', color: '#475569', fontStyle: 'italic', margin: '4px 8px 4px 8px', textAlign: 'center', fontWeight: '500' }}>
                           "{latest.caption}"
                         </p>
                       )}
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', padding: '0 8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', padding: '0 8px' }}>
                         <button
                           onClick={() => toggleFavorite(latest.id, latest.is_favorite)}
                           style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', padding: '4px' }}
-                          title="Favorisieren"
                         >
                           {latest.is_favorite ? '❤️' : '🤍'}
                         </button>
                         <button
                           onClick={() => deleteDrawing(latest.id)}
                           style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '4px' }}
-                          title="Löschen"
                         >
                           🗑️
                         </button>
@@ -612,7 +759,7 @@ export default function Home() {
                 );
               })()}
 
-              {/* 2. FAVORITEN ABSCHNITT */}
+              {/* 2. FAVORITEN */}
               {(() => {
                 const favorites = galleryImages.filter(img => img.is_favorite);
                 if (favorites.length === 0) return null;
@@ -645,8 +792,14 @@ export default function Home() {
                             />
                           </div>
 
+                          {img.author_name && (
+                            <p style={{ fontSize: '10px', color: '#8E8A9F', fontWeight: '800', marginTop: '4px', textAlign: 'center' }}>
+                              {img.author_name}
+                            </p>
+                          )}
+
                           {img.caption && (
-                            <p style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic', margin: '6px 4px 2px 4px', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <p style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic', margin: '2px 4px 2px 4px', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               "{img.caption}"
                             </p>
                           )}
@@ -672,7 +825,7 @@ export default function Home() {
                 );
               })()}
 
-              {/* 3. CHRONOLOGISCH ALLE WEITEREN ERINNERUNGEN */}
+              {/* 3. WEITERE ERINNERUNGEN */}
               {(() => {
                 const otherImages = galleryImages.filter(img => !img.is_favorite);
                 if (otherImages.length === 0) return null;
@@ -705,8 +858,14 @@ export default function Home() {
                             />
                           </div>
 
+                          {img.author_name && (
+                            <p style={{ fontSize: '10px', color: '#8E8A9F', fontWeight: '800', marginTop: '4px', textAlign: 'center' }}>
+                              {img.author_name}
+                            </p>
+                          )}
+
                           {img.caption && (
-                            <p style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic', margin: '6px 4px 2px 4px', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <p style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic', margin: '2px 4px 2px 4px', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               "{img.caption}"
                             </p>
                           )}
@@ -790,8 +949,13 @@ export default function Home() {
                 objectFit: 'contain'
               }}
             />
+            {selectedImageModal.author_name && (
+              <p style={{ color: '#B197FC', fontSize: '12px', fontWeight: '800', marginTop: '12px', letterSpacing: '1px' }}>
+                VON {selectedImageModal.author_name.toUpperCase()}
+              </p>
+            )}
             {selectedImageModal.caption && (
-              <p style={{ color: 'white', fontSize: '16px', fontStyle: 'italic', marginTop: '16px', textAlign: 'center' }}>
+              <p style={{ color: 'white', fontSize: '16px', fontStyle: 'italic', marginTop: '4px', textAlign: 'center' }}>
                 "{selectedImageModal.caption}"
               </p>
             )}
