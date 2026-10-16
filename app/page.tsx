@@ -226,7 +226,46 @@ const subscribeToPush = async () => {
     setDrawingCaption('');
   };
 
-// --- ZEICHNUNG SPEICHERN ---
+  // 📸 FOTO VOM HANDY AUFNEHMEN & KOMPRIMIEREN (DIESE FUNKTION HAT GEFEHLT)
+  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const offCanvas = document.createElement('canvas');
+        const maxDim = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height *= maxDim / width;
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width *= maxDim / height;
+            height = maxDim;
+          }
+        }
+
+        offCanvas.width = width;
+        offCanvas.height = height;
+        const ctx = offCanvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        const compressedDataUrl = offCanvas.toDataURL('image/jpeg', 0.8);
+        setPhotoPreview(compressedDataUrl);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // --- ZEICHNUNG SPEICHERN ---
   const saveDrawing = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
