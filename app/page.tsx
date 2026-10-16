@@ -529,71 +529,211 @@ export default function Home() {
 
       {/* ================= TAB 4: GALERIE ================= */}
       {activeTab === 'galerie' && (
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', paddingBottom: '40px' }}>
           <p className="section-title">UNSERE GALERIE</p>
-          <div style={{ width: '100%', maxWidth: '390px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            {galleryImages.length === 0 ? (
-              <div className="white-card" style={{ gridColumn: 'span 2', textAlign: 'center', color: '#94A3B8' }}>
-                Noch keine Fotos oder Zeichnungen da. Male oder knipse etwas im zweiten Tab! 🎨📸
-              </div>
-            ) : (
-              galleryImages.map((img) => (
-                <div
-                  key={img.id}
-                  className="white-card"
-                  style={{
-                    padding: '8px',
-                    marginBottom: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    height: '100%'
-                  }}
-                >
-                  {/* Klick aufs Bild öffnet die Großansicht */}
-                  <div
-                    onClick={() => setSelectedImageModal(img)}
-                    style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: '16px', overflow: 'hidden', background: '#FAF9FE', cursor: 'pointer' }}
-                  >
-                    <img
-                      src={img.image_url}
-                      alt="Kunstwerk"
+
+          {galleryImages.length === 0 ? (
+            <div className="white-card" style={{ width: '100%', maxWidth: '390px', textAlign: 'center', color: '#94A3B8' }}>
+              Noch keine Fotos oder Zeichnungen da. Male oder knipse etwas im zweiten Tab! 🎨📸
+            </div>
+          ) : (
+            <div style={{ width: '100%', maxWidth: '390px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              
+              {/* 1. HERO BAUSTEIN: Neuster Post */}
+              {galleryImages[0] && (() => {
+                const latest = galleryImages[0];
+                return (
+                  <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <p className="section-title" style={{ marginBottom: '8px' }}>NEUESTE ERINNERUNG ✨</p>
+                    <div
+                      className="white-card"
                       style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain',
-                        display: 'block'
+                        padding: '12px',
+                        marginBottom: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        minHeight: '60vh',
+                        boxShadow: '0 10px 30px rgba(108, 92, 231, 0.12)'
                       }}
-                    />
-                  </div>
-
-                  {/* Bildunterschrift anzeigen, falls vorhanden */}
-                  {img.caption && (
-                    <p style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic', margin: '6px 4px 2px 4px', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      "{img.caption}"
-                    </p>
-                  )}
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', padding: '0 4px' }}>
-                    <button
-                      onClick={() => toggleFavorite(img.id, img.is_favorite)}
-                      style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: '2px 4px' }}
-                      title="Favorisieren"
                     >
-                      {img.is_favorite ? '❤️' : '🤍'}
-                    </button>
-                    <button
-                      onClick={() => deleteDrawing(img.id)}
-                      style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', padding: '2px 4px' }}
-                      title="Löschen"
-                    >
-                      🗑️
-                    </button>
+                      <div
+                        onClick={() => setSelectedImageModal(latest)}
+                        style={{
+                          width: '100%',
+                          flex: 1,
+                          minHeight: '280px',
+                          borderRadius: '16px',
+                          overflow: 'hidden',
+                          background: '#FAF9FE',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <img
+                          src={latest.image_url}
+                          alt="Neuester Beitrag"
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            maxHeight: '48vh',
+                            objectFit: 'contain',
+                            display: 'block'
+                          }}
+                        />
+                      </div>
+
+                      {latest.caption && (
+                        <p style={{ fontSize: '15px', color: '#475569', fontStyle: 'italic', margin: '12px 8px 4px 8px', textAlign: 'center', fontWeight: '500' }}>
+                          "{latest.caption}"
+                        </p>
+                      )}
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', padding: '0 8px' }}>
+                        <button
+                          onClick={() => toggleFavorite(latest.id, latest.is_favorite)}
+                          style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', padding: '4px' }}
+                          title="Favorisieren"
+                        >
+                          {latest.is_favorite ? '❤️' : '🤍'}
+                        </button>
+                        <button
+                          onClick={() => deleteDrawing(latest.id)}
+                          style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '4px' }}
+                          title="Löschen"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
-          </div>
+                );
+              })()}
+
+              {/* 2. FAVORITEN ABSCHNITT */}
+              {(() => {
+                const favorites = galleryImages.filter(img => img.is_favorite);
+                if (favorites.length === 0) return null;
+
+                return (
+                  <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <p className="section-title" style={{ marginBottom: '8px' }}>FAVORITEN ❤️</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      {favorites.map((img) => (
+                        <div
+                          key={`fav-${img.id}`}
+                          className="white-card"
+                          style={{
+                            padding: '8px',
+                            marginBottom: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            height: '100%'
+                          }}
+                        >
+                          <div
+                            onClick={() => setSelectedImageModal(img)}
+                            style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: '16px', overflow: 'hidden', background: '#FAF9FE', cursor: 'pointer' }}
+                          >
+                            <img
+                              src={img.image_url}
+                              alt="Favorit"
+                              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                            />
+                          </div>
+
+                          {img.caption && (
+                            <p style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic', margin: '6px 4px 2px 4px', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              "{img.caption}"
+                            </p>
+                          )}
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', padding: '0 4px' }}>
+                            <button
+                              onClick={() => toggleFavorite(img.id, img.is_favorite)}
+                              style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: '2px 4px' }}
+                            >
+                              ❤️
+                            </button>
+                            <button
+                              onClick={() => deleteDrawing(img.id)}
+                              style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', padding: '2px 4px' }}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* 3. CHRONOLOGISCH ALLE WEITEREN ERINNERUNGEN */}
+              {(() => {
+                const otherImages = galleryImages.filter(img => !img.is_favorite);
+                if (otherImages.length === 0) return null;
+
+                return (
+                  <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <p className="section-title" style={{ marginBottom: '8px' }}>WEITERE ERINNERUNGEN 🖼️</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      {otherImages.map((img) => (
+                        <div
+                          key={`all-${img.id}`}
+                          className="white-card"
+                          style={{
+                            padding: '8px',
+                            marginBottom: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            height: '100%'
+                          }}
+                        >
+                          <div
+                            onClick={() => setSelectedImageModal(img)}
+                            style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: '16px', overflow: 'hidden', background: '#FAF9FE', cursor: 'pointer' }}
+                          >
+                            <img
+                              src={img.image_url}
+                              alt="Erinnerung"
+                              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                            />
+                          </div>
+
+                          {img.caption && (
+                            <p style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic', margin: '6px 4px 2px 4px', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              "{img.caption}"
+                            </p>
+                          )}
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', padding: '0 4px' }}>
+                            <button
+                              onClick={() => toggleFavorite(img.id, img.is_favorite)}
+                              style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: '2px 4px' }}
+                            >
+                              🤍
+                            </button>
+                            <button
+                              onClick={() => deleteDrawing(img.id)}
+                              style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', padding: '2px 4px' }}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+            </div>
+          )}
         </div>
       )}
 
