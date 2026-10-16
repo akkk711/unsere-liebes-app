@@ -118,9 +118,7 @@ export default function Home() {
 
   // --- BUCKETLIST ---
   const [goals, setGoals] = useState<{ id: string; title: string; is_completed: boolean }[]>([
-    { id: '1', title: 'Picknick bei Sonnenuntergang machen 🧺', is_completed: true },
-    { id: '2', title: 'Wochenendtrip nach Paris buchen 🗼', is_completed: false },
-    { id: '3', title: 'Gemeinsam einen Töpferkurs besuchen 🎨', is_completed: false }
+    { id: '1', title: 'Lord of the Rings Marathon', is_completed: false },
   ]);
   const [newGoalInput, setNewGoalInput] = useState('');
 
@@ -389,7 +387,7 @@ export default function Home() {
           onClick={() => setActiveTab('malen')}
         >
           <span className="nav-icon">🎨</span>
-          <span>Malen</span>
+          <span>Message</span>
         </button>
 
         <button
@@ -397,7 +395,7 @@ export default function Home() {
           onClick={() => setActiveTab('ziele')}
         >
           <span className="nav-icon">✨</span>
-          <span>Ziele</span>
+          <span>Bucketlist</span>
         </button>
 
         <button
