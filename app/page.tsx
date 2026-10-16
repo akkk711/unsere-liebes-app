@@ -7,7 +7,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'home' | 'malen' | 'ziele' | 'galerie'>('home');
   
   // --- ZEIT & JAHRESTAG ---
-  const startDate = new Date('2024-08-20T00:00:00'); // Euer Beziehungsstart
+  const startDate = new Date('2026-08-20T00:00:00'); // Euer Beziehungsstart
   const [timeTogether, setTimeTogether] = useState({ days: 57, hours: 0, minutes: 0, seconds: 0 });
   const [daysToNextAnniversary, setDaysToNextAnniversary] = useState(308);
 
