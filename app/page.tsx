@@ -24,8 +24,7 @@ export default function Home() {
       
       setTimeTogether({ days: Math.abs(days), hours, minutes, seconds });
 
-      // Nächster Jahrestag (20. August)
-      let nextAnniv = new Date(now.getFullYear(), 7, 20); // Monat 7 ist August
+      let nextAnniv = new Date(now.getFullYear(), 7, 20); // 20. August
       if (now > nextAnniv) {
         nextAnniv.setFullYear(now.getFullYear() + 1);
       }
@@ -50,12 +49,14 @@ export default function Home() {
     }
   };
 
-  // --- MALEN (CANVAS) ---
+  // --- MALEN & KAMERA (CANVAS + PHOTO) ---
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [brushColor, setBrushColor] = useState('#6C5CE7');
   const [brushSize, setBrushSize] = useState(4);
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('🎨 Kunstwerk in Galerie gespeichert! ❤️');
 
   const startDrawing = (e: any) => {
     const canvas = canvasRef.current;
@@ -107,13 +108,81 @@ export default function Home() {
     const dataUrl = canvas.toDataURL('image/png');
 
     try {
-      await supabase.from('drawings').insert([{ image_url: dataUrl }]);
+      const { data } = await supabase
+        .from('drawings')
+        .insert([{ image_url: dataUrl, is_favorite: false }])
+        .select();
+
+      if (data && data.length > 0) {
+        setGalleryImages((prev) => [data[0], ...prev]);
+      } else {
+        setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: dataUrl, is_favorite: false }, ...prev]);
+      }
     } catch (e) {
-      console.log('Drawing local saved');
+      setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: dataUrl, is_favorite: false }, ...prev]);
     }
 
+    setToastMessage('🎨 Kunstwerk in Galerie gespeichert! ❤️');
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
+  };
+
+  // --- KAMERA-FOTO SKALIEREN & SPEICHERN ---
+  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = async () => {
+        // Foto komprimieren und auf max. 800px skalieren
+        const offCanvas = document.createElement('canvas');
+        const maxDim = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height *= maxDim / width;
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width *= maxDim / height;
+            height = maxDim;
+          }
+        }
+
+        offCanvas.width = width;
+        offCanvas.height = height;
+        const ctx = offCanvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        const compressedDataUrl = offCanvas.toDataURL('image/jpeg', 0.8);
+
+        try {
+          const { data } = await supabase
+            .from('drawings')
+            .insert([{ image_url: compressedDataUrl, is_favorite: false }])
+            .select();
+
+          if (data && data.length > 0) {
+            setGalleryImages((prev) => [data[0], ...prev]);
+          } else {
+            setGalleryImages((prev) => [{ id: Date.now().toString(), image_url: compressedDataUrl, is_favorite: false }, ...prev]);
+          }
+        } catch (err) {
+          console.error(err);
+        }
+
+        setToastMessage('📸 Foto in Galerie gespeichert! ❤️');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
   };
 
   // --- BUCKETLIST ---
@@ -126,11 +195,6 @@ export default function Home() {
     const { data } = await supabase.from('bucketlist').select('*').order('created_at', { ascending: false });
     if (data && data.length > 0) setGoals(data);
   };
-
-  useEffect(() => {
-    if (activeTab === 'ziele') fetchGoals();
-    if (activeTab === 'galerie') fetchGallery();
-  }, [activeTab]);
 
   const addGoal = async () => {
     if (!newGoalInput.trim()) return;
@@ -150,12 +214,33 @@ export default function Home() {
   };
 
   // --- GALERIE ---
-  const [galleryImages, setGalleryImages] = useState<{ id: string; image_url: string }[]>([]);
+  const [galleryImages, setGalleryImages] = useState<{ id: string; image_url: string; is_favorite?: boolean }[]>([]);
 
   const fetchGallery = async () => {
     const { data } = await supabase.from('drawings').select('*').order('created_at', { ascending: false });
-    if (data && data.length > 0) setGalleryImages(data);
+    if (data) setGalleryImages(data);
   };
+
+  const toggleFavorite = async (id: string, currentFav?: boolean) => {
+    const updated = galleryImages.map(img => img.id === id ? { ...img, is_favorite: !currentFav } : img);
+    setGalleryImages(updated);
+    try {
+      await supabase.from('drawings').update({ is_favorite: !currentFav }).eq('id', id);
+    } catch (e) {}
+  };
+
+  const deleteDrawing = async (id: string) => {
+    const updated = galleryImages.filter(img => img.id !== id);
+    setGalleryImages(updated);
+    try {
+      await supabase.from('drawings').delete().eq('id', id);
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    if (activeTab === 'ziele') fetchGoals();
+    if (activeTab === 'galerie') fetchGallery();
+  }, [activeTab]);
 
   return (
     <div className="app-viewport">
@@ -187,7 +272,7 @@ export default function Home() {
             <h1 style={{ fontSize: '64px', color: '#5B4699', fontWeight: '900', margin: '4px 0' }}>
               {timeTogether.days}
             </h1>
-            <p style={{ fontSize: '13px', color: '#8E8A9F', fontWeight: '800', tracking: '1px', marginBottom: '20px' }}>
+            <p style={{ fontSize: '13px', color: '#8E8A9F', fontWeight: '800', letterSpacing: '1px', marginBottom: '20px' }}>
               TAGEN
             </p>
           
@@ -214,12 +299,43 @@ export default function Home() {
         </div>
       )}
 
-      {/* ================= TAB 2: MALEN ================= */}
+      {/* ================= TAB 2: MESSAGE (MALEN & KAMERA) ================= */}
       {activeTab === 'malen' && (
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <p className="section-title">ETWAS FÜR DICH MALEN</p>
+          <p className="section-title">ETWAS FÜR DICH MALEN ODER SPRECHEN</p>
+          
           <div className="white-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             
+            {/* Kamera Button */}
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              ref={fileInputRef}
+              onChange={handlePhotoCapture}
+              style={{ display: 'none' }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                width: '100%',
+                padding: '12px',
+                marginBottom: '16px',
+                background: '#FAF9FE',
+                border: '2px dashed #B197FC',
+                borderRadius: '16px',
+                fontWeight: '800',
+                color: '#6C5CE7',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              📸 Foto mit Kamera knipsen
+            </button>
+
             {/* Color Selector */}
             <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
               {['#6C5CE7', '#EC4899', '#EF4444', '#10B981', '#3B82F6', '#000000'].map((c) => (
@@ -276,7 +392,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* ================= TAB 3: ZIELE ================= */}
+      {/* ================= TAB 3: BUCKETLIST ================= */}
       {activeTab === 'ziele' && (
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <p className="section-title">UNSERE BUCKETLIST</p>
@@ -341,12 +457,28 @@ export default function Home() {
           <div style={{ width: '100%', maxWidth: '390px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             {galleryImages.length === 0 ? (
               <div className="white-card" style={{ gridColumn: 'span 2', textAlign: 'center', color: '#94A3B8' }}>
-                Noch keine Zeichnungen da. Male etwas im zweiten Tab! 🎨
+                Noch keine Fotos oder Zeichnungen da. Male oder knipse etwas im zweiten Tab! 🎨📸
               </div>
             ) : (
               galleryImages.map((img) => (
                 <div key={img.id} className="white-card" style={{ padding: '8px', marginBottom: 0 }}>
-                  <img src={img.image_url} alt="Kunstwerk" style={{ width: '100%', borderRadius: '16px', background: '#FAF9FE' }} />
+                  <img src={img.image_url} alt="Kunstwerk" style={{ width: '100%', borderRadius: '16px', background: '#FAF9FE', display: 'block' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', padding: '0 4px' }}>
+                    <button
+                      onClick={() => toggleFavorite(img.id, img.is_favorite)}
+                      style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: '2px 4px' }}
+                      title="Favorisieren"
+                    >
+                      {img.is_favorite ? '❤️' : '🤍'}
+                    </button>
+                    <button
+                      onClick={() => deleteDrawing(img.id)}
+                      style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', padding: '2px 4px' }}
+                      title="Löschen"
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -368,7 +500,7 @@ export default function Home() {
           boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
           zIndex: 200
         }}>
-          🎨 Kunstwerk in Galerie gespeichert! ❤️
+          {toastMessage}
         </div>
       )}
 
