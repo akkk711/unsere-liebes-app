@@ -11,10 +11,8 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    // Diese Zeile sagt Vercel: Ignoriere fehlendes ESLint
-    ignoreDuringBuilds: true,
-  },
+  // Dieser leere Block sagt Next.js 16, dass es mit dem PWA-Plugin klarkommen soll
+  turbopack: {},
 };
 
 export default withPWA(nextConfig);
