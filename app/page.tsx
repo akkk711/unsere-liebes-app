@@ -161,13 +161,37 @@ const subscribeToPush = async () => {
 
   const handleMoodSelect = async (emoji: string) => {
     setSelectedMood(emoji);
+    const author = currentUserProfile?.display_name || 'Liebling';
+
+    let moodText = `${author} fühlt sich gerade ${emoji}`;
+    if (emoji === '😊') moodText = `${author} ist gerade super gut drauf! 😊`;
+    if (emoji === '🥰') moodText = `${author} schickt dir ganz viel Liebe! 🥰`;
+    if (emoji === '🥱') moodText = `${author} ist gerade ziemlich müde... 🥱`;
+    if (emoji === '😢') moodText = `${author} ist gerade traurig, schick eine Umarmung! 😢`;
+
     try {
-      await supabase.from('moods').insert([{ mood_emoji: emoji, user_name: currentUserProfile?.display_name || 'Partner' }]);
+      await supabase.from('moods').insert([{ mood_emoji: emoji, user_name: author }]);
     } catch (e) {
       console.log('Mood gesichert');
     }
-  };
 
+    // Push-Benachrichtigung an den Partner schicken
+    fetch('/api/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `Stimmung von ${author} ${emoji}`,
+        body: moodText,
+        senderUserId: session?.user?.id,
+        type: 'mood'
+      })
+    }).catch(err => console.log('Push Fehler:', err));
+
+    // ✨ BESTÄTIGUNGS-TOAST ANZEIGEN:
+    setToastMessage(`Stimmung ${emoji} gesendet! ❤️`);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
   // --- MALEN & KAMERA (CANVAS + PHOTO) ---
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
