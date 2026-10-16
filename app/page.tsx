@@ -15,6 +15,58 @@ export default function Home() {
   // --- PUSH NOTIFICATION SUBSCRIBE LOGIC ---
 const [pushSubscribed, setPushSubscribed] = useState(false);
 
+// --- BENACHRICHTIGUNG POPUP STATE & DIRECT LISTENER ---
+  const [notificationModal, setNotificationModal] = useState<{ title: string; body: string; type?: string } | null>(null);
+
+  const checkQueryParams = () => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const notifTitle = params.get('notifTitle');
+    const notifBody = params.get('notifBody');
+    const notifType = params.get('notifType');
+
+    if (notifTitle || notifBody) {
+      setNotificationModal({
+        title: decodeURIComponent(notifTitle || 'Neue Nachricht ❤️'),
+        body: decodeURIComponent(notifBody || ''),
+        type: decodeURIComponent(notifType || 'general')
+      });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  };
+
+  useEffect(() => {
+    checkQueryParams();
+
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'NOTIFICATION_CLICKED') {
+        setNotificationModal({
+          title: event.data.notifTitle || 'Neue Nachricht ❤️',
+          body: event.data.notifBody || '',
+          type: event.data.notifType || 'general'
+        });
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkQueryParams();
+      }
+    };
+
+    if (typeof window !== 'undefined' && 'navigator' in window && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (typeof window !== 'undefined' && 'navigator' in window && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+  
 useEffect(() => {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW Registration error:', err));
@@ -49,6 +101,9 @@ const subscribeToPush = async () => {
 
     // In Supabase speichern
     if (session?.user) {
+      // Alte Einträge für diesen User löschen, damit keine Duplikate entstehen
+      await supabase.from('push_subscriptions').delete().eq('user_id', session.user.id);
+
       await supabase.from('push_subscriptions').insert([{
         user_id: session.user.id,
         subscription: subscription
