@@ -155,8 +155,13 @@ const subscribeToPush = async () => {
     return () => clearInterval(timer);
   }, []);
 
+<<<<<<< Updated upstream
   // --- MOOD TRACKER ---
   const [selectedMood, setSelectedMood] = useState<string>('😊');
+=======
+ // --- MOOD TRACKER & PUSH ---
+ const [selectedMood, setSelectedMood] = useState<string>('😊');
+>>>>>>> Stashed changes
 
   const handleMoodSelect = async (emoji: string) => {
     setSelectedMood(emoji);
