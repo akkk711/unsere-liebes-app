@@ -88,10 +88,16 @@ const [pushSubscribed, setPushSubscribed] = useState(false);
   }, []);
 
 useEffect(() => {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW Registration error:', err));
-  }
-}, []);
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
+      navigator.serviceWorker.register('/sw.js').then(async (registration) => {
+        // Prüfen, ob für dieses Gerät/Browser bereits ein aktives Push-Abo existiert
+        const existingSub = await registration.pushManager.getSubscription();
+        if (existingSub) {
+          setPushSubscribed(true);
+        }
+      }).catch(err => console.log('SW Registration error:', err));
+    }
+  }, []);
 
 const subscribeToPush = async () => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
