@@ -15,6 +15,22 @@ export default function Home() {
   // --- PUSH NOTIFICATION SUBSCRIBE LOGIC ---
 const [pushSubscribed, setPushSubscribed] = useState(false);
 
+// --- TÄGLICHER SPRUCH (API) ---
+  const [dailyQuote, setDailyQuote] = useState<string>('Lade heutigen Spruch...');
+
+  useEffect(() => {
+    fetch('https://zenquotes.io/api/today')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data[0]) {
+          setDailyQuote(`"${data[0].q}" — ${data[0].a}`);
+        }
+      })
+      .catch(() => {
+        setDailyQuote('"Du bist das Beste, was mir je passiert ist! ❤️"');
+      });
+  }, []);
+
 // --- BENACHRICHTIGUNG POPUP STATE & DIRECT LISTENER ---
   const [notificationModal, setNotificationModal] = useState<{ title: string; body: string; type?: string } | null>(null);
 
@@ -654,11 +670,11 @@ const subscribeToPush = async () => {
             <h2 style={{ fontSize: '18px', color: '#4A3E6D', fontWeight: '800', textAlign: 'center', margin: '0 0 16px 0' }}>
               Süßer Gedanke
             </h2>
-            <span style={{ position: 'absolute', left: '20px', top: '48px', fontSize: '32px', color: '#DDD6FE', fontFamily: 'serif' }}>
-              "
+            <span style={{ position: 'absolute', left: '20px', top: '18px', fontSize: '24px' }}>
+              💭
             </span>
-            <p style={{ textAlign: 'center', color: '#475569', fontStyle: 'italic', fontSize: '15px', margin: '12px 0 0 0', padding: '0 16px' }}>
-              Liebe ist, wenn du der Grund bist, warum ich lächle.
+            <p style={{ textAlign: 'center', color: '#475569', fontStyle: 'italic', fontSize: '15px', marginTop: '12px' }}>
+              {dailyQuote}
             </p>
           </div>
         </div>
