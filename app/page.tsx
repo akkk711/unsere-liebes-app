@@ -1,7 +1,27 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+
 import { supabase } from '@/lib/supabase';
+
+// Eure Erinnerungs-Sammlung
+const REMINDERS = [
+  "Denk daran, heute genug Wasser zu trinken! 💧",
+  "Gönn dir eine kurze Pause und atme tief durch! 🧘‍♀️",
+  "Schick deinem Schatz einen kurzen Gruß! 🥰",
+  "Vergiss nicht, dich zwischendurch mal zu strecken! 🤸‍♂️",
+  "Iss heute etwas Leckeres und Gesundes! 🥗",
+  "Lächle einmal kurz – du machst das toll heute! ✨",
+  "Nimm dir 5 Minuten Auszeit nur für dich! ☕",
+  "Rücken gerade machen und Schultern entspannen! 💆‍♂️"
+];
+
+// Wechselt alle 4 Stunden automatisch die Erinnerung
+const getReminder = () => {
+  const fourHoursInMs = 1000 * 60 * 60 * 4;
+  const currentInterval = Math.floor(Date.now() / fourHoursInMs);
+  return REMINDERS[currentInterval % REMINDERS.length];
+};
 
 export default function Home() {
   // --- AUTH & PROFILE STATE ---
@@ -14,22 +34,6 @@ export default function Home() {
 
   // --- PUSH NOTIFICATION SUBSCRIBE LOGIC ---
 const [pushSubscribed, setPushSubscribed] = useState(false);
-
-// --- TÄGLICHER SPRUCH (API) ---
-  const [dailyQuote, setDailyQuote] = useState<string>('Lade heutigen Spruch...');
-
-  useEffect(() => {
-    fetch('https://zenquotes.io/api/today')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && data[0]) {
-          setDailyQuote(`"${data[0].q}" — ${data[0].a}`);
-        }
-      })
-      .catch(() => {
-        setDailyQuote('"Du bist das Beste, was mir je passiert ist! ❤️"');
-      });
-  }, []);
 
 // --- BENACHRICHTIGUNG POPUP STATE & DIRECT LISTENER ---
   const [notificationModal, setNotificationModal] = useState<{ title: string; body: string; type?: string } | null>(null);
@@ -665,16 +669,16 @@ const subscribeToPush = async () => {
             </div>
           </div>
 
-          {/* Süßer Gedanke Card */}
-          <div className="white-card" style={{ position: 'relative' }}>
-            <h2 style={{ fontSize: '18px', color: '#4A3E6D', fontWeight: '800', textAlign: 'center', margin: '0 0 16px 0' }}>
-              Süßer Gedanke
-            </h2>
+          {/* Liebevolle Erinnerung Card */}
+          <div className="white-card" style={{ position: 'relative', textAlign: 'center' }}>
             <span style={{ position: 'absolute', left: '20px', top: '18px', fontSize: '24px' }}>
-              💭
+              🔔
             </span>
-            <p style={{ textAlign: 'center', color: '#475569', fontStyle: 'italic', fontSize: '15px', marginTop: '12px' }}>
-              {dailyQuote}
+            <h2 style={{ fontSize: '18px', color: '#4A3E6D', fontWeight: '800', margin: 0, textAlign: 'center' }}>
+              Erinnerung für dich
+            </h2>
+            <p style={{ textAlign: 'center', color: '#475569', fontWeight: '600', fontSize: '15px', marginTop: '12px', marginBottom: 0 }}>
+              {getReminder()}
             </p>
           </div>
         </div>
