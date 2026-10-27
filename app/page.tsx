@@ -507,7 +507,7 @@ const subscribeToPush = async () => {
 
     if (error) {
       console.error('Fehler beim Speichern:', error);
-      alert('Fehler beim Speichern!');
+      alert(`Fehler beim Speichern: ${error.message}`); // Zeigt jetzt den exakten Grund an!
       return;
     }
 
