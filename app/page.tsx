@@ -472,12 +472,12 @@ const subscribeToPush = async () => {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  // --- BUCKET LIST STATE & LOGIC ---
+ // --- BUCKETLIST / ZIELE LOGIK ---
   const [bucketList, setBucketList] = useState<any[]>([]);
   const [newBucketTitle, setNewBucketTitle] = useState('');
 
-  // 1. Alle Einträge beim Laden aus Supabase abrufen
-  const fetchBucketList = async () => {
+  // 1. Ziele aus Supabase laden
+  const fetchGoals = async () => {
     const { data, error } = await supabase
       .from('bucket_list')
       .select('*')
@@ -488,48 +488,43 @@ const subscribeToPush = async () => {
     }
   };
 
-  useEffect(() => {
-    fetchBucketList();
-  }, []);
-
-  // 2. Neues Element anhängen (statt zu überschreiben)
+  // 2. Neues Ziel speichern (in Supabase & lokal anhängen)
   const handleAddBucketItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBucketTitle.trim()) return;
 
-    const newItem = {
-      title: newBucketTitle.trim(),
-      is_completed: false,
-      user_id: session?.user?.id
-    };
+    const titleToSend = newBucketTitle.trim();
+    setNewBucketTitle(''); // Input-Feld sofort zurücksetzen
 
     const { data, error } = await supabase
       .from('bucket_list')
-      .insert([newItem])
+      .insert([{
+        title: titleToSend,
+        is_completed: false,
+        user_id: session?.user?.id
+      }])
       .select();
 
     if (error) {
-      console.error('Fehler beim Hinzufügen:', error);
+      console.error('Fehler beim Speichern:', error);
+      alert('Fehler beim Speichern!');
       return;
     }
 
     if (data && data[0]) {
-      // WICHTIG: Neues Item an die bestehende Liste anhängen (...)
+      // WICHTIG: Neues Element an die bestehende Liste anhängen (...)
       setBucketList((prev) => [...prev, data[0]]);
-      setNewBucketTitle('');
     }
   };
 
-  // 3. Eintrag abhaken / Status umstellen
+  // 3. Status umschalten (Abhaken)
   const handleToggleBucketItem = async (id: string, currentStatus: boolean) => {
-    // Sofort im UI umschalten (schnelles Feedback)
     setBucketList((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, is_completed: !currentStatus } : item
       )
     );
 
-    // In Supabase aktualisieren
     await supabase
       .from('bucket_list')
       .update({ is_completed: !currentStatus })
@@ -565,7 +560,7 @@ const subscribeToPush = async () => {
   };
 
   useEffect(() => {
-    if (activeTab === 'ziele') fetchBucketList();
+    if (activeTab === 'ziele') fetchGoals();
     if (activeTab === 'galerie') fetchGallery();
   }, [activeTab]);
 
@@ -872,68 +867,84 @@ const subscribeToPush = async () => {
         </div>
       )}
 
-      {/* Bucketlist Formular & Anzeige */}
-<form onSubmit={handleAddBucketItem} style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-  <input
-    type="text"
-    placeholder="Ein neues Ziel oder Erlebnis..."
-    value={newBucketTitle}
-    onChange={(e) => setNewBucketTitle(e.target.value)}
-    style={{
-      flex: 1,
-      padding: '12px 16px',
-      borderRadius: '12px',
-      border: '1px solid #CBD5E1',
-      fontSize: '14px'
-    }}
-  />
-  <button
-    type="submit"
-    style={{
-      padding: '12px 18px',
-      background: 'linear-gradient(135deg, #B197FC, #E599F7)',
-      color: 'white',
-      border: 'none',
-      borderRadius: '12px',
-      fontWeight: '700',
-      cursor: 'pointer'
-    }}
-  >
-    +
-  </button>
-</form>
+      {/* ================= BUCKETLIST TAB ================= */}
+      {activeTab === 'ziele' && (
+        <div style={{ paddingBottom: '100px' }}>
+          <h2 style={{ fontSize: '20px', color: '#4A3E6D', fontWeight: '800', textAlign: 'center', marginBottom: '16px' }}>
+            Unsere Bucket List ✨
+          </h2>
 
-{/* Liste aller Einträge */}
-<div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-  {bucketList.map((item) => (
-    <div
-      key={item.id}
-      onClick={() => handleToggleBucketItem(item.id, item.is_completed)}
-      className="white-card"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '14px 18px',
-        margin: 0,
-        cursor: 'pointer',
-        opacity: item.is_completed ? 0.6 : 1
-      }}
-    >
-      <span style={{
-        fontSize: '15px',
-        fontWeight: '600',
-        textDecoration: item.is_completed ? 'line-through' : 'none',
-        color: item.is_completed ? '#94A3B8' : '#475569'
-      }}>
-        {item.title}
-      </span>
-      <span style={{ fontSize: '18px' }}>
-        {item.is_completed ? '✅' : '⭕'}
-      </span>
-    </div>
-  ))}
-</div>
+          {/* Eingabeleiste im weißen Karten-Design */}
+          <div className="white-card" style={{ marginBottom: '20px' }}>
+            <form onSubmit={handleAddBucketItem} style={{ display: 'flex', gap: '10px' }}>
+              <input
+                type="text"
+                placeholder="Neues Ziel oder Erlebnis..."
+                value={newBucketTitle}
+                onChange={(e) => setNewBucketTitle(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: '12px 16px',
+                  borderRadius: '14px',
+                  border: '1px solid #E2E8F0',
+                  outline: 'none',
+                  fontSize: '14px',
+                  color: '#475569',
+                  backgroundColor: '#F8FAFC'
+                }}
+              />
+              <button
+                type="submit"
+                style={{
+                  padding: '12px 20px',
+                  background: 'linear-gradient(135deg, #B197FC, #E599F7)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '14px',
+                  fontWeight: '800',
+                  fontSize: '16px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(177,151,252,0.3)'
+                }}
+              >
+                +
+              </button>
+            </form>
+          </div>
+
+          {/* Alle gespeicherten Ziele */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {bucketList.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => handleToggleBucketItem(item.id, item.is_completed)}
+                className="white-card"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '16px 20px',
+                  margin: 0,
+                  cursor: 'pointer',
+                  opacity: item.is_completed ? 0.6 : 1
+                }}
+              >
+                <span style={{
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  textDecoration: item.is_completed ? 'line-through' : 'none',
+                  color: item.is_completed ? '#94A3B8' : '#475569'
+                }}>
+                  {item.title}
+                </span>
+                <span style={{ fontSize: '20px' }}>
+                  {item.is_completed ? '✅' : '⭕'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ================= TAB 4: GALERIE ================= */}
       {activeTab === 'galerie' && (
