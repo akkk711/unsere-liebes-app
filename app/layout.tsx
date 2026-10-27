@@ -13,14 +13,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Unsere Liebes-App",
-  description: "Unsere eigene kleine Welt",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Unsere Liebe",
+  title: 'Pookie ❤️',
+  description: 'Unsere kleine App für uns zwei',
+  icons: {
+    icon: '/icon.png',
+    apple: '/apple-touch-icon.png',
   },
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({

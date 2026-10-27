@@ -570,7 +570,7 @@ const subscribeToPush = async () => {
       <div className="app-viewport" style={{ justifyContent: 'center' }}>
         <div className="white-card" style={{ width: '100%', maxWidth: '360px', padding: '24px', textAlign: 'center' }}>
           <h2 style={{ fontSize: '22px', color: '#4A3E6D', fontWeight: '800', marginBottom: '8px' }}>
-            Unsere Liebes-App ❤️
+            Pookie ❤️
           </h2>
           <p style={{ fontSize: '14px', color: '#64748B', marginBottom: '20px' }}>
             {isRegistering ? 'Erstelle euer persönliches Profil' : 'Melde dich an, um eure App zu öffnen'}
